@@ -25,6 +25,114 @@ stock = pd.read_csv("/Users/James/workspace/python/test/panda-test/apple.csv", i
 # })
 
 ################## 处理包含关系 ##################
+data = [[index, row["High"], row["Low"]] for index, row in stock.iterrows()]
+data_clean = [data[0]]
+trend = "up"
+
+for i in range(1, len(data)):
+    pre_date = data_clean[-1][0]
+    pre_high = data_clean[-1][1]
+    pre_low = data_clean[-1][2]
+    cur_date = data[i][0]
+    cur_high = data[i][1]
+    cur_low = data[i][2]
+
+    if pre_high >= cur_high and pre_low <= cur_low:
+        if trend == "up": data_clean[-1] = [pre_date, pre_high, cur_low]
+        else: data_clean[-1] = [pre_date, cur_high, pre_low]
+    
+    elif pre_high < cur_high and pre_low > cur_low:
+        if trend == "up": data_clean[-1] = [cur_date, cur_high, pre_low]
+        else: data_clean[-1] = [cur_date, pre_high, cur_low]
+    
+    else:
+        data_clean.append([cur_date, cur_high, cur_low])
+    
+    trend = "up" if data_clean[-1][1] > data_clean[-2][1] else "down"
+
+################## 寻找分型 ##################
+top = []
+bottom = []
+
+processing_type = "top" if data_clean[0][1] < data_clean[1][1] else "bottom"
+pre_index = None
+
+for i in range(1, len(data_clean) - 1):
+    pre_date = data_clean[i-1][0]
+    pre_high = data_clean[i-1][1]
+    pre_low = data_clean[i-1][2]
+    cur_date = data_clean[i][0]
+    cur_high = data_clean[i][1]
+    cur_low = data_clean[i][2]
+    next_date = data_clean[i+1][0]
+    next_high = data_clean[i+1][1]
+    next_low = data_clean[i+1][2]
+
+    if cur_high > pre_high and cur_high > next_high:
+        # 第一个
+        if pre_index is None: 
+            processing_type = "bottom"
+            top.append([cur_date, cur_high, cur_low])
+            pre_index = i
+        # 去掉太近的顶分型
+        elif processing_type == "top" and i - pre_index < 4: 
+            pass
+        # 现在的顶分型比之前的高，故去掉之前的顶分型
+        elif processing_type == "bottom" and top[-1][1] < cur_high: 
+            top[-1] = [cur_date, cur_high, cur_low]
+            pre_index = i
+        # 现在的顶分型没有比之前的高
+        elif processing_type == "bottom" and top[-1][1] > cur_high: 
+            pass
+        #正常
+        else:
+            processing_type = "bottom"
+            top.append([cur_date, cur_high, cur_low])
+            pre_index = i
+
+    elif cur_low < pre_low and cur_low > next_low:
+        # 第一个
+        if pre_index is None: 
+            processing_type = "top"
+            bottom.append([cur_date, cur_high, cur_low])
+            pre_index = i
+        # 去掉太近的底分型
+        elif processing_type == "bottom" and i - pre_index < 4: 
+            passnext_lownext_low
+        # 现在的底分型比之前的高，故去掉之前的底分型
+        elif processing_type == "top" and bottom[-1][1] < cur_high: 
+            bottom[-1] = [cur_date, cur_high, cur_low]
+            pre_index = i
+        # 现在的底分型没有比之前的高
+        elif processing_type == "top" and bottom[-1][1] > cur_high: 
+            passnext_low
+        #正常
+        else:
+            processing_type = "bnext_lowottom"
+            bottom.append([cur_date, cur_high, cur_low])
+            pre_index = i
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################## 处理包含关系 ##################
 new_high=[]
 new_low=[]
 
