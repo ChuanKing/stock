@@ -12,17 +12,16 @@ pd.set_option("display.width", max_width)
 
 ################## Retrieve Stock Data ##################
 # import datetime
-# start =  datetime.datetime(2003, 1, 1)
+# ticker = "AAPL"
+# start =  datetime.datetime(2013, 1, 1)
 # end = datetime.date.today()
-# apple = web.DataReader("AAPL", "yahoo", start, end)
-# apple.to_csv("apple.csv")
+# stock = web.DataReader(ticker, "yahoo", start, end)
+# stock.to_csv(ticker + ".csv")
 
 ################## Import Stock Data ##################
-stock = pd.read_csv("/Users/James/workspace/python/test/panda-test/apple.csv", index_col=0)
-# stock = pd.DataFrame({
-#     "Heigh": [9, 7, 6, 5],
-#     "Low": [6, 3, 4, 3],
-# })
+# stock = pd.read_csv("/Users/ggo935/James/workspace/python/stock/apple.csv", index_col=0)
+# stock["Date"] = stock.index
+# stock.index = pd.to_datetime(stock.index)
 
 ################## 处理包含关系 ##################
 data = [[index, row["High"], row["Low"]] for index, row in stock.iterrows()]
@@ -30,12 +29,8 @@ data_clean = [data[0]]
 trend = "up"
 
 for i in range(1, len(data)):
-    pre_date = data_clean[-1][0]
-    pre_high = data_clean[-1][1]
-    pre_low = data_clean[-1][2]
-    cur_date = data[i][0]
-    cur_high = data[i][1]
-    cur_low = data[i][2]
+    pre_date, pre_high, pre_low = data_clean[-1]
+    cur_date, cur_high, cur_low = data[i]
 
     if pre_high >= cur_high and pre_low <= cur_low:
         if trend == "up": data_clean[-1] = [pre_date, pre_high, cur_low]
@@ -47,280 +42,187 @@ for i in range(1, len(data)):
     
     else:
         data_clean.append([cur_date, cur_high, cur_low])
-    
-    trend = "up" if data_clean[-1][1] > data_clean[-2][1] else "down"
+        trend = "up" if data_clean[-1][1] > data_clean[-2][1] else "down"
+
+# stock["High_clean"] = np.nan
+# stock["Low_clean"] = np.nan
+
+# for d in data_clean:
+#     stock.at[d[0], "High_clean"] = d[1]
+#     stock.at[d[0], "Low_clean"] = d[2]
 
 ################## 寻找分型 ##################
 top = []
 bottom = []
-
-processing_type = "top" if data_clean[0][1] < data_clean[1][1] else "bottom"
 pre_index = None
+processing_type = "top" if data_clean[0][1] < data_clean[1][1] else "bottom"
 
 for i in range(1, len(data_clean) - 1):
-    pre_date = data_clean[i-1][0]
-    pre_high = data_clean[i-1][1]
-    pre_low = data_clean[i-1][2]
-    cur_date = data_clean[i][0]
-    cur_high = data_clean[i][1]
-    cur_low = data_clean[i][2]
-    next_date = data_clean[i+1][0]
-    next_high = data_clean[i+1][1]
-    next_low = data_clean[i+1][2]
+    pre_date, pre_high, pre_low = data_clean[i-1]
+    cur_date, cur_high, cur_low = data_clean[i]
+    next_date, next_high, next_low = data_clean[i+1]
 
     if cur_high > pre_high and cur_high > next_high:
-        # 第一个
+        # 1. 起始的顶分型
         if pre_index is None: 
-            processing_type = "bottom"
-            top.append([cur_date, cur_high, cur_low])
-            pre_index = i
-        # 去掉太近的顶分型
-        elif processing_type == "top" and i - pre_index < 4: 
-            pass
-        # 现在的顶分型比之前的高，故去掉之前的顶分型
-        elif processing_type == "bottom" and top[-1][1] < cur_high: 
-            top[-1] = [cur_date, cur_high, cur_low]
-            pre_index = i
-        # 现在的顶分型没有比之前的高
-        elif processing_type == "bottom" and top[-1][1] > cur_high: 
-            pass
-        #正常
-        else:
-            processing_type = "bottom"
-            top.append([cur_date, cur_high, cur_low])
-            pre_index = i
-
-    elif cur_low < pre_low and cur_low > next_low:
-        # 第一个
+            top.append(data_clean[i])
+            pre_index, processing_type = i, "bottom"
+        # 2. 正常的顶分型
+        elif processing_type == "top" and i - pre_index >= 4:
+            top.append(data_clean[i])
+            pre_index, processing_type = i, "bottom"
+        # 3. 在寻找底分型的过程中出现了顶分型，而且高于之前的顶分型
+        if processing_type == "bottom" and cur_high > top[-1][1]: 
+            top[-1] = data_clean[i]
+            pre_index, processing_type = i, "bottom"
+    
+    if cur_low < pre_low and cur_low < next_low:
+        # 1. 起始的底分型
         if pre_index is None: 
-            processing_type = "top"
-            bottom.append([cur_date, cur_high, cur_low])
-            pre_index = i
-        # 去掉太近的底分型
-        elif processing_type == "bottom" and i - pre_index < 4: 
-            passnext_lownext_low
-        # 现在的底分型比之前的高，故去掉之前的底分型
-        elif processing_type == "top" and bottom[-1][1] < cur_high: 
-            bottom[-1] = [cur_date, cur_high, cur_low]
-            pre_index = i
-        # 现在的底分型没有比之前的高
-        elif processing_type == "top" and bottom[-1][1] > cur_high: 
-            passnext_low
-        #正常
-        else:
-            processing_type = "bnext_lowottom"
-            bottom.append([cur_date, cur_high, cur_low])
-            pre_index = i
+            bottom.append(data_clean[i])
+            pre_index, processing_type = i, "top"
+        # 2. 正常的底分型
+        elif processing_type == "bottom" and i - pre_index >= 4:
+            bottom.append(data_clean[i])
+            pre_index, processing_type = i, "top"
+        # 3. 在寻找底分型的过程中出现了底分型，而且高于之前的底分型
+        if processing_type == "top" and cur_low < bottom[-1][2]: 
+            bottom[-1] = data_clean[i]
+            pre_index, processing_type = i, "top"
 
+stock["fractals"] = np.nan
 
+for d in top:
+    stock.at[d[0], "fractals"] = d[1]
+for d in bottom:
+    stock.at[d[0], "fractals"] = d[2]
 
+stock["stroke"] = stock["fractals"].interpolate(method="linear")
 
+################## 寻找线段端点 ##################
+# fractals = stock["fractals"].dropna().values.tolist()
+fractals = stock[["Date", "fractals"]].dropna().values.tolist()
 
+# 1. 寻找特征序列
+up_sequence = []
+down_sequence = []
 
+for i in range(len(fractals) - 1):
+    # 1. 向下笔为上升序列特征值
+    if fractals[i][1] > fractals[i+1][1]:
+        up_sequence.append([fractals[i][0], fractals[i][1], fractals[i+1][1]])
+    # 2. 向上笔为下降序列特征值
+    if fractals[i][1] < fractals[i+1][1]:
+        down_sequence.append([fractals[i][0], fractals[i+1][1], fractals[i][1]])
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################## 处理包含关系 ##################
-new_high=[]
-new_low=[]
-
-pre_index = None
-moving_direction = "down"
-for index, row in stock.iterrows():
-    cur_high = row["High"]
-    cur_low = row["Low"]
-    
-    if len(new_high) > 0:
-        pre_high = new_high[-1]
-        pre_low = new_low[-1]
-
-        if pre_high >= cur_high and pre_low <= cur_low:
-            if moving_direction == "up": cur_high = pre_high
-            if moving_direction == "down": cur_low = pre_low
-            new_high[-1] = np.nan
-            new_low[-1] = np.nan
-
-        elif pre_high <= cur_high and pre_low >= cur_low:
-            if moving_direction == "up": cur_low = pre_low
-            if moving_direction == "down": cur_high = pre_high
-            new_high[-1] = np.nan
-            new_low[-1] = np.nan
-
-        else:
-            moving_direction = "up" if cur_high > pre_high else "down"
-
-    new_high.append(cur_high)
-    new_low.append(cur_low)
-
-stock["new_high"] = new_high
-stock["new_low"] = new_low
-stock["new_high"].interpolate(inplace=True)
-stock["new_low"].interpolate(inplace=True)
-
-################## 寻找分型 ##################
-stock["new_high_max"] = stock["new_high"].rolling(window = 3, center = True).max()
-stock["new_low_min"] = stock["new_low"].rolling(window = 3, center = True).min()
-stock["top"] = np.where(stock["new_high_max"] == stock["new_high"], stock["new_high"], np.nan)
-stock["bottom"] = np.where(stock["new_low_min"] == stock["new_low"], -stock["new_low"], np.nan)
-
-fractal = stock["top"].fillna(stock["bottom"]).values.tolist()
-processing_type = "top" if stock["top"].first_valid_index() < stock["bottom"].first_valid_index() else "bottom"
-pre_index = None
-
-for i in range(len(fractal)): 
-    if np.isnan(fractal[i]): continue
-
-    if fractal[i] > 0:
-        if pre_index is None:
-            processing_type = "bottom"
-            pre_index = i
-        # 去掉太近的顶分型
-        elif processing_type == "top" and i - pre_index < 4: 
-            fractal[i] = np.nan
-        # 现在的顶分型比之前的高，故去掉之前的顶分型
-        elif processing_type == "bottom" and fractal[i] > fractal[pre_index]: 
-            fractal[pre_index] = np.nan
-            pre_index = i
-        elif processing_type == "bottom": 
-            fractal[i] = np.nan
-        else:
-            processing_type = "bottom"
-            pre_index = i
-    
-    elif fractal[i] < 0:
-        if pre_index is None:
-            processing_type = "top"
-            pre_index = i
-        # 去掉太近的底分型
-        if processing_type == "bottom" and i - pre_index < 4: 
-            fractal[i] = np.nan
-        # 现在的底分型比之前的低，故去掉之前的底分型
-        elif processing_type == "top" and abs(fractal[i]) < abs(fractal[pre_index]): 
-            fractal[pre_index] = np.nan
-            pre_index = i
-        elif processing_type == "top": 
-            fractal[i] = np.nan
-        else:
-            processing_type = "top"
-            pre_index = i
-
-stock["fractal"] = fractal
-
-################## 绘制线 ##################
-stock["stroke"] = stock["fractal"].abs().interpolate()
-
-################## 绘制线段 ##################
-fractals = [[index, row["fractal"]] for index, row in stock[np.isfinite(stock["fractal"])].iterrows()]
-
-# 1. 上升序列
-up_features = []
-up_features_fractals = fractals if fractals[0][1] > 0 else fractals[1:]
-up_features_fractals = up_features_fractals if len(up_features_fractals) % 2 == 0 else up_features_fractals[:-1]
-
-for i in range(len(up_features_fractals)):
-    if i % 2 == 0:
-        feature_top = up_features_fractals[i]
-        feature_bottom = up_features_fractals[i + 1]
-        up_features.append([feature_top[0], abs(feature_top[1]), abs(feature_bottom[1])])
-
-# 2. 下降序列
-down_features = []
-down_features_fractals = fractals if fractals[0][1] < 0 else fractals[1:]
-down_features_fractals = down_features_fractals if len(down_features_fractals) % 2 == 0 else down_features_fractals[:-1]
-
-for i in range(len(down_features_fractals)):
-    if i % 2 == 0:
-        feature_bottom = down_features_fractals[i]
-        feature_top = down_features_fractals[i + 1]
-        down_features.append([feature_bottom[0], abs(feature_bottom[1]), abs(feature_top[1])])
-
-# 3. 处理包含关系
-up_features_clean = [up_features[0]]
-for i in range(1, len(up_features)):
-    pre_date = up_features_clean[-1][0]
-    pre_high = up_features_clean[-1][1]
-    pre_low = up_features_clean[-1][2]
-    cur_date = up_features[i][0]
-    cur_high = up_features[i][1]
-    cur_low = up_features[i][2]
+# 2. 处理包含关系
+trend = "up"
+up_sequence_clean = [up_sequence[0]]
+for i in range(1, len(up_sequence)):
+    pre_date, pre_high, pre_low = up_sequence_clean[-1]
+    cur_date, cur_high, cur_low = up_sequence[i]
 
     if pre_high >= cur_high and pre_low <= cur_low:
-        up_features_clean[-1] = [pre_date, pre_high, cur_low]
+        if trend == "up": up_sequence_clean[-1] = [pre_date, pre_high, cur_low]
+        else: up_sequence_clean[-1] = [pre_date, cur_high, pre_low]
     
     elif pre_high < cur_high and pre_low > cur_low:
-        up_features_clean[-1] = [cur_date, cur_high, pre_low]
+        if trend == "up": up_sequence_clean[-1] = [cur_date, cur_high, pre_low]
+        else: up_sequence_clean[-1] = [cur_date, pre_high, cur_low]
     
     else:
-        up_features_clean.append([cur_date, cur_high, cur_low])
+        up_sequence_clean.append([cur_date, cur_high, cur_low])
+        trend = "up" if up_sequence_clean[-1][1] > up_sequence_clean[-2][1] else "down"
 
-down_features_clean = [down_features[0]]
-for i in range(1, len(down_features)):
-    pre_date = down_features_clean[-1][0]
-    pre_low = down_features_clean[-1][1]
-    pre_high = down_features_clean[-1][2]
-    cur_date = down_features[i][0]
-    cur_low = down_features[i][1]
-    cur_high = down_features[i][2]
+trend = "up"
+down_sequence_clean = [down_sequence[0]]
+for i in range(1, len(down_sequence)):
+    pre_date, pre_high, pre_low = down_sequence_clean[-1]
+    cur_date, cur_high, cur_low = down_sequence[i]
 
     if pre_high >= cur_high and pre_low <= cur_low:
-        down_features_clean[-1] = [pre_date, pre_low, cur_high]
+        if trend == "up": down_sequence_clean[-1] = [pre_date, pre_high, cur_low]
+        else: down_sequence_clean[-1] = [pre_date, cur_high, pre_low]
     
     elif pre_high < cur_high and pre_low > cur_low:
-        down_features_clean[-1] = [cur_date, cur_low, pre_high]
+        if trend == "up": down_sequence_clean[-1] = [cur_date, cur_high, pre_low]
+        else: down_sequence_clean[-1] = [cur_date, pre_high, cur_low]
     
     else:
-        down_features_clean.append([cur_date, cur_low, cur_high])
+        down_sequence_clean.append([cur_date, cur_high, cur_low])
+        trend = "up" if down_sequence_clean[-1][1] > down_sequence_clean[-2][1] else "down"
 
-stock["test1"] = np.nan
-stock["test2"] = np.nan
-for point in up_features_clean:
-    stock.at[point[0], "test1"] = stock.loc[point[0]]["fractal"]
+# 3. 寻找特征序列顶底分型
+up_sequence_top = []
+for i in range(1, len(up_sequence_clean) - 1):
+    pre_date, pre_high, pre_low = up_sequence_clean[i-1]
+    cur_date, cur_high, cur_low = up_sequence_clean[i]
+    next_date, next_high, next_low = up_sequence_clean[i+1]
 
-for point in down_features_clean:
-    stock.at[point[0], "test2"] = stock.loc[point[0]]["fractal"]
-
-# 4. 特征序列顶底分型
-up_features_top = []
-for i in range(1, len(up_features_clean) - 1):
-    pre_high = up_features_clean[i-1][1]
-    cur_high = up_features_clean[i][1]
-    next_high = up_features_clean[i+1][1]
-    
     if cur_high > pre_high and cur_high > next_high:
-        up_features_top.append(up_features_clean[i][0])
+        up_sequence_top.append(up_sequence_clean[i])
 
-down_features_bottom = []
-for i in range(1, len(down_features_clean) - 1):
-    pre_bottom = down_features_clean[i-1][1]
-    cur_bottom = down_features_clean[i][1]
-    next_bottom = down_features_clean[i+1][1]
-    
-    if cur_bottom < pre_bottom and cur_bottom < next_bottom:
-        down_features_bottom.append(down_features_clean[i][0])
+down_sequence_bottom = []
+for i in range(1, len(down_sequence_clean) - 1):
+    pre_date, pre_high, pre_low = down_sequence_clean[i-1]
+    cur_date, cur_high, cur_low = down_sequence_clean[i]
+    next_date, next_high, next_low = down_sequence_clean[i+1]
 
-# 5. 标记线段点
+    if cur_low < pre_low and cur_low < next_low:
+        down_sequence_bottom.append(down_sequence_clean[i])
+
+# 4. 准备数据
+sequence_date_clean = sorted([point[0] for point in up_sequence_clean + down_sequence_clean])
+sequence_value_clean = dict()
+
+for point in up_sequence_clean: sequence_value_clean[point[0]] = point[1]
+for point in down_sequence_clean: sequence_value_clean[point[0]] = point[2]
+
+up_sequence_top = [point[0] for point in up_sequence_top]
+down_sequence_bottom = [point[0] for point in down_sequence_bottom]
+
+# 5. 选取线段点
+first_line_point = sorted(up_sequence_top + down_sequence_bottom)[0]
+processing_type = "top" if first_line_point in up_sequence_top else "bottom"
+pre_index = sequence_date_clean.index(first_line_point)
+
+line = [first_line_point]
+for i in range(pre_index + 1, len(sequence_date_clean)):
+    pre_date = line[-1]
+    cur_date = sequence_date_clean[i]
+
+    if cur_date in up_sequence_top:
+        if pre_date in up_sequence_top and sequence_value_clean[cur_date] > sequence_value_clean[pre_date]:
+            line[-1] = cur_date
+            pre_index = i
+        elif pre_date in down_sequence_bottom and i - pre_index >= 3:
+            line.append(cur_date)
+            pre_index = i
+
+    elif cur_date in down_sequence_bottom:
+        if pre_date in down_sequence_bottom and sequence_value_clean[cur_date] < sequence_value_clean[pre_date]:
+            line[-1] = cur_date
+            pre_index = i
+        elif pre_date in up_sequence_top and i - pre_index >= 3:
+            line.append(cur_date)
+            pre_index = i
+
 stock["line-point"] = np.nan
 
-for top in up_features_top:
-    stock.at[top, "line-point"] = stock.loc[top]["fractal"]
+for d in line:
+    stock.at[d, "line-point"] = sequence_value_clean[d]
 
-for bottom in down_features_bottom:
-    stock.at[bottom, "line-point"] = stock.loc[bottom]["fractal"]
+################## 绘制线段 ##################
+line_point = stock["line-point"].values.tolist()
+high = stock["High"].values.tolist()
 
-# 6. 画线
-stock["line"] = stock["line-point"].abs().interpolate()
+line_point[0] = high[0]
+line_point[-1] = high[-1]
+
+stock["line"] = line_point
+stock["line"] = stock["line"].interpolate()
+
+"""
 ################## 清理垃圾 ##################
 stock.drop([
     "new_high_max",
@@ -331,12 +233,22 @@ stock.drop([
     "bottom"
 ], axis=1, inplace=True)
 
-
 ################## 输出 ##################
-print(stock)
-stock["stroke"].abs().plot()
-stock["test1"].abs().interpolate().plot()
-stock["test2"].abs().interpolate().plot()
-# stock["Close"].plot()
+# stock["stroke"].abs().plot()
+# stock["test1"].abs().interpolate().plot()
+# stock["test2"].abs().interpolate().plot()
+# stock["High"].plot()
+# stock["Low"].plot()
+# stock["High_clean"].plot()
+# stock["Low_clean"].plot()
+# ) #
+"""
 
+
+print(stock[["High", "Low", "fractals", "stroke", "line-point", "line"]])
+
+import toolbox
+toolbox.pandas_candlestick_ohlc(stock, otherseries=['stroke', 'line'])
 plt.show()
+
+
