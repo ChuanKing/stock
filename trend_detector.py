@@ -11,17 +11,17 @@ pd.set_option("display.max_columns", max_width)
 pd.set_option("display.width", max_width)
 
 ################## Retrieve Stock Data ##################
-# import datetime
-# ticker = "AAPL"
-# start =  datetime.datetime(2013, 1, 1)
-# end = datetime.date.today()
-# stock = web.DataReader(ticker, "yahoo", start, end)
+import datetime
+ticker = "SPY"
+start =  datetime.datetime(2013, 1, 1)
+end = datetime.date.today()
+stock = web.DataReader(ticker, "yahoo", start, end)
 # stock.to_csv(ticker + ".csv")
 
 ################## Import Stock Data ##################
 # stock = pd.read_csv("/Users/ggo935/James/workspace/python/stock/apple.csv", index_col=0)
-# stock["Date"] = stock.index
 # stock.index = pd.to_datetime(stock.index)
+stock["Date"] = stock.index
 
 ################## 处理包含关系 ##################
 data = [[index, row["High"], row["Low"]] for index, row in stock.iterrows()]
@@ -207,6 +207,27 @@ for i in range(pre_index + 1, len(sequence_date_clean)):
             line.append(cur_date)
             pre_index = i
 
+# 6. 处理第一点和最后一点
+high = stock["High"].values.tolist()
+date = stock["Date"].values.tolist()
+
+first_high = high[0]
+last_high = high[-1]
+
+first_date = date[0]
+last_date = date[-1]
+
+if (first_high - sequence_value_clean[line[0]]) * (sequence_value_clean[line[0]] - sequence_value_clean[line[1]]) > 0:
+    line = line[1:]
+
+if (sequence_value_clean[line[-2]] - sequence_value_clean[line[-1]]) * (sequence_value_clean[line[-1]] - last_high) > 0:
+    line = line[:-1]
+
+line = [first_date] + line + [last_date]
+sequence_value_clean[first_date] = first_high
+sequence_value_clean[last_date] = last_high
+
+# 7. 把线段点放进data framwork
 stock["line-point"] = np.nan
 
 for d in line:
@@ -222,29 +243,7 @@ line_point[-1] = high[-1]
 stock["line"] = line_point
 stock["line"] = stock["line"].interpolate()
 
-"""
-################## 清理垃圾 ##################
-stock.drop([
-    "new_high_max",
-    "new_low_min", 
-    "new_high", 
-    "new_low", 
-    "top",
-    "bottom"
-], axis=1, inplace=True)
-
 ################## 输出 ##################
-# stock["stroke"].abs().plot()
-# stock["test1"].abs().interpolate().plot()
-# stock["test2"].abs().interpolate().plot()
-# stock["High"].plot()
-# stock["Low"].plot()
-# stock["High_clean"].plot()
-# stock["Low_clean"].plot()
-# ) #
-"""
-
-
 print(stock[["High", "Low", "fractals", "stroke", "line-point", "line"]])
 
 import toolbox
